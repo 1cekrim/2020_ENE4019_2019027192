@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #include <sstream>
 #include <string>
 #include <tcp.hpp>
@@ -7,8 +7,8 @@ int main()
 {
     std::cout << "server start\n";
 
-    std::string host = "localhost";
-    constexpr auto port = 10000;
+    std::string host = "0.0.0.0";
+    constexpr auto port = 80;
 
     std::cout << host << ':' << port << '\n';
 
