@@ -1,26 +1,55 @@
+import time
 import socketserver
+import threading
+import socket
 
 class TCPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         print(self.client_address[0])
+        print(threading.current_thread().name)
         buffer = self.request.recv(1024).strip()
 
-        req = self.parse_http(buffer)
+        try:
+            req = self.parse_http(buffer)
+        except Exception as e:
+            import time
+            result = {}
+            result['headers'] = {}
+            result['version'] = 'HTTP/1.1'
+            result['headers']['Content-Type'] = 'text/html; charset=UTF-8'
+            result['headers']['Referrer-Policy'] = 'no-referrer'
+            tm = time.time()
+            result['headers']['Date'] = time.strftime('%a, %d %b %Y %H:%M:%S') + ' KST'
+            result['code'] = 400
+            result['code_name'] = 'Bad Request'
+            result['content'] = '<html><body>400 Bad Request</body><html>'
+            result['headers']['Content-Length'] = len(result['content'])
+            self.send_headers(result)
+            self.send_content(result)
+            print('exception')
 
         if req['method'] == 'GET':
             rep = self.handle_get(req)
         
-        self.send_response(rep)
+        self.send_headers(rep)
+        self.send_content(rep)
+        print('success')
 
-        # self.request.send(html_text)
-
-    def send_response(self, rep):
-        print(rep)
-        self.send_response(rep["code"])
+    def send_headers(self, rep):
+        html_text = f'{rep["version"]} {rep["code"]} {rep["code_name"]}\r\n'
         for key, val in rep['headers'].items():
-            self.send_header(key, val)
-        self.end_headers()
-        self.wfile.write(rep["content"])
+            html_text += f'{key}: {val}\r\n'
+        html_text += '\r\n'
+        self.request.send(html_text.encode())
+
+    def send_content(self, rep):
+        if rep['headers']['Content-Type'] == 'text/html; charset=UTF-8':
+            self.request.send(rep['content'].encode())
+            return
+
+        if rep['headers']['Content-Type'] == 'image/jpeg;':
+            self.request.send(rep['content'])
+            return
 
     def parse_http(self, text):
         text = text.decode('utf-8')
@@ -61,6 +90,8 @@ class TCPHandler(socketserver.BaseRequestHandler):
             path = path[1:]
         # TODO: 파일 이름 하나만 설정
         filename = path[0]
+        if not filename:
+            filename = 'index.html'
         file_path = f'./html/{filename}'
         extension = filename.split('.')[-1]
 
@@ -92,18 +123,51 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 result['code'] = 200
                 result['code_name'] = 'OK'
                 result['content'] = html_text
-                print(html_text[:100].decode('utf-8'))
-                input()
                 result['headers']['Content-Length'] = len(result['content'])
                 return result
 
         assert(false)
 
-        
+class ThreadedTcpServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    pass
+
+def client(ip, port, message):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((ip, port))
+    try:
+        sock.sendall(message.encode())
+        response = sock.recv(1024)
+        print(f'Received: {response}')
+    finally:
+        sock.close()
 
 def main():
-    server = socketserver.TCPServer(('0.0.0.0', 80), TCPHandler)
-    server.serve_forever()
+    server = ThreadedTcpServer(('0.0.0.0', 5253), TCPHandler)
+    server.daemon_threads = True
+    ip, port = server.server_address
+    print(f'{ip}:{port}')
+
+    try:
+        server_thread = threading.Thread(target=server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
+        print(f'thread: {server_thread.name}')
+        # server_thread.join()
+        while True:
+            time.sleep(10000)
+    except (KeyboardInterrupt, SystemExit):
+        print('exit')
+        pass
+
+    # client(ip, port, 'asd')
+    # client(ip, port, 'asd')
+    # client(ip, port, 'asd')
+
+    server.shutdown()
+    server.server_close()
+
+    # server = socketserver.TCPServer(('0.0.0.0', 5253), TCPHandler)
+    # server.serve_forever()
 
 if __name__ =="__main__":
     main()
