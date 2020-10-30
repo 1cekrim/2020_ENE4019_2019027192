@@ -1,55 +1,78 @@
 import time
-import socketserver
-import threading
-import socket
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 
-class TCPHandler(socketserver.BaseRequestHandler):
-    def handle(self):
-        print(self.client_address[0])
-        print(threading.current_thread().name)
-        buffer = self.request.recv(1024).strip()
+class HTTPHandler(BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'
 
-        try:
-            req = self.parse_http(buffer)
-        except Exception as e:
-            import time
-            result = {}
-            result['headers'] = {}
-            result['version'] = 'HTTP/1.1'
-            result['headers']['Content-Type'] = 'text/html; charset=UTF-8'
-            result['headers']['Referrer-Policy'] = 'no-referrer'
-            tm = time.time()
-            result['headers']['Date'] = time.strftime('%a, %d %b %Y %H:%M:%S') + ' KST'
-            result['code'] = 400
-            result['code_name'] = 'Bad Request'
-            result['content'] = '<html><body>400 Bad Request</body><html>'
-            result['headers']['Content-Length'] = len(result['content'])
-            self.send_headers(result)
-            self.send_content(result)
-            print('exception')
+    def do_GET(self):
+        self.close_connection = True
+        if self.request_version != self.protocol_version:
+            self.handle_400()
+            return
 
-        if req['method'] == 'GET':
-            rep = self.handle_get(req)
+        path = self.path.strip().lower()
+        path = path.split('/')
+        if not path[0]:
+            path = path[1:]
         
-        self.send_headers(rep)
-        self.send_content(rep)
-        print('success')
+        filename = path[0]
+        if not filename:
+            filename = 'index.html'
+        file_path = f'./html/{filename}'
+        extension = filename.split('.')[-1]
 
-    def send_headers(self, rep):
-        html_text = f'{rep["version"]} {rep["code"]} {rep["code_name"]}\r\n'
-        for key, val in rep['headers'].items():
-            html_text += f'{key}: {val}\r\n'
-        html_text += '\r\n'
-        self.request.send(html_text.encode())
-
-    def send_content(self, rep):
-        if rep['headers']['Content-Type'] == 'text/html; charset=UTF-8':
-            self.request.send(rep['content'].encode())
+        import os.path
+        if not os.path.exists(file_path):
+            self.handle_404()
             return
 
-        if rep['headers']['Content-Type'] == 'image/jpeg;':
-            self.request.send(rep['content'])
-            return
+        self.send_response(200)
+        self.send_header('Referrer-Policy', 'no-referrer')
+        
+        if extension == 'html':
+            with open(file_path, 'r') as f:
+                content = f.read()
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Content-Length', len(content))
+            self.end_headers()
+            self.wfile.write(content.encode())
+
+        elif extension == 'jpg':
+            with open(file_path, 'rb') as f:
+                content = f.read()
+            self.send_header('Content-Type', 'image/jpg')
+            self.send_header('Content-Length', len(content))
+            self.end_headers()
+            self.wfile.write(content)
+        else:
+
+
+    def handle_400(self):
+        self.send_response(400)
+        content = '<html><body>400 Bad Request</body><html>'
+        self.send_header('Referrer-Policy', 'no-referrer')
+        self.send_header('Content-Type', 'text/html; charset=UTF-8')
+        self.send_header('Content-Length', len(content))
+        self.end_headers()
+        self.wfile.write(content.encode())
+
+    def handle_404(self):
+        self.send_response(404)
+        content = '<html><body>404 Not Found</body><html>'
+        self.send_header('Referrer-Policy', 'no-referrer')
+        self.send_header('Content-Type', 'text/html; charset=UTF-8')
+        self.send_header('Content-Length', len(content))
+        self.end_headers()
+        self.wfile.write(content.encode())
+
+    def handle_500(self):
+        self.send_response(500)
+        content = '<html><body>500 Internal Server Error</body><html>'
+        self.send_header('Referrer-Policy', 'no-referrer')
+        self.send_header('Content-Type', 'text/html; charset=UTF-8')
+        self.send_header('Content-Length', len(content))
+        self.end_headers()
+        self.wfile.write(content.encode())
 
     def parse_http(self, text):
         text = text.decode('utf-8')
@@ -126,48 +149,11 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 result['headers']['Content-Length'] = len(result['content'])
                 return result
 
-        assert(false)
-
-class ThreadedTcpServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
-    pass
-
-def client(ip, port, message):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((ip, port))
-    try:
-        sock.sendall(message.encode())
-        response = sock.recv(1024)
-        print(f'Received: {response}')
-    finally:
-        sock.close()
-
 def main():
-    server = ThreadedTcpServer(('0.0.0.0', 5253), TCPHandler)
-    server.daemon_threads = True
+    server = ThreadingHTTPServer(('', 5253), HTTPHandler)
     ip, port = server.server_address
     print(f'{ip}:{port}')
-
-    try:
-        server_thread = threading.Thread(target=server.serve_forever)
-        server_thread.daemon = True
-        server_thread.start()
-        print(f'thread: {server_thread.name}')
-        # server_thread.join()
-        while True:
-            time.sleep(10000)
-    except (KeyboardInterrupt, SystemExit):
-        print('exit')
-        pass
-
-    # client(ip, port, 'asd')
-    # client(ip, port, 'asd')
-    # client(ip, port, 'asd')
-
-    server.shutdown()
-    server.server_close()
-
-    # server = socketserver.TCPServer(('0.0.0.0', 5253), TCPHandler)
-    # server.serve_forever()
+    server.serve_forever()
 
 if __name__ =="__main__":
     main()
