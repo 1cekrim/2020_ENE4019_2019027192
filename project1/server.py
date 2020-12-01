@@ -4,8 +4,21 @@ from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 class HTTPHandler(BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.1'
 
+    def do_POST(self):
+        if self.request_version != self.protocol_version:
+            self.handle_400()
+            return
+        self.send_response(200)
+        self.send_header('Referrer-Policy', 'no-referrer')
+        self.end_headers()
+        clen = int(self.headers.getheader('Content-Length', 0))
+        body = self.rfile.read(clen)
+        self.wfile.write(f'[receive]</br>{body}')
+
+    def do_PUT(self):
+        self.do_POST()
+
     def do_GET(self):
-        self.close_connection = True
         if self.request_version != self.protocol_version:
             self.handle_400()
             return
@@ -18,7 +31,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
         filename = path[0]
         if not filename:
             filename = 'index.html'
-        file_path = f'./html/{filename}'
+        file_path = f'./static/{filename}'
         extension = filename.split('.')[-1]
 
         import os.path
@@ -44,8 +57,9 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Length', len(content))
             self.end_headers()
             self.wfile.write(content)
-        else:
 
+        else:
+            self.handle_500()
 
     def handle_400(self):
         self.send_response(400)
@@ -115,7 +129,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
         filename = path[0]
         if not filename:
             filename = 'index.html'
-        file_path = f'./html/{filename}'
+        file_path = f'./static/{filename}'
         extension = filename.split('.')[-1]
 
         if extension == 'html':
