@@ -1,8 +1,7 @@
 import time
 import ssl
 from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
-
-from jinja2 import Template
+from urllib.parse import urlparse
 
 template_dict = {}
 
@@ -13,22 +12,19 @@ class HTTPHandler(BaseHTTPRequestHandler):
         if self.request_version != self.protocol_version:
             self.handle_400()
             return
-        self.send_response(200)
-        self.send_header('Referrer-Policy', 'no-referrer')
-        self.end_headers()
-        clen = int(self.headers.getheader('Content-Length', 0))
-        body = self.rfile.read(clen)
-        self.wfile.write(f'[receive]</br>{body}')
 
-    def do_PUT(self):
-        self.do_POST()
+        post_len = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(post_len).decode('utf-8')
 
-    def do_GET(self):
-        if self.request_version != self.protocol_version:
-            self.handle_400()
-            return
+        qres = {}
+        for q in post_data.split('&'):
+            if '=' in q:
+                s = q.split('=')
+                qres[s[0]] = s[1]
+        query = qres
 
-        path = self.path.strip().lower()
+        parsed_path=urlparse(self.path.strip().lower())
+        path = parsed_path.path
         path = path.split('/')
         if not path[0]:
             path = path[1:]
@@ -44,19 +40,68 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self.handle_404()
             return
 
-        self.send_response(200)
-        self.send_header('Referrer-Policy', 'no-referrer')
-        
         if extension == 'html':
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding='utf8') as f:
                 content = f.read()
-            self.send_header('Content-Type', 'text/html')
+            content, res = template_dict[file_path](content, query, 'POST')
+            content = content.encode('utf-8')
+            self.send_response(res)
+            self.send_header('Referrer-Policy', 'no-referrer')
+            self.send_header('Content-Type', 'text/html;charset=utf-8')
             self.send_header('Content-Length', len(content))
             self.end_headers()
-            # template
-            self.wfile.write(template_dict[file_path](content.encode()))
+            self.wfile.write(content)
+        else:
+            self.handle_500()
+
+    def do_PUT(self):
+        self.do_POST()
+
+    def do_GET(self):
+        if self.request_version != self.protocol_version:
+            self.handle_400()
+            return
+
+        parsed_path=urlparse(self.path.strip().lower())
+        query = parsed_path.query
+        qres = {}
+        for q in query.split('&'):
+            if '=' in q:
+                s = q.split('=')
+                qres[s[0]] = s[1]
+        query = qres
+
+        path = parsed_path.path
+        path = path.split('/')
+        if not path[0]:
+            path = path[1:]
+        
+        filename = path[0]
+        if not filename:
+            filename = 'index.html'
+        file_path = f'./static/{filename}'
+        extension = filename.split('.')[-1]
+
+        import os.path
+        if not os.path.exists(file_path):
+            self.handle_404()
+            return
+
+        if extension == 'html':
+            with open(file_path, 'r', encoding='utf8') as f:
+                content = f.read()
+            content, res = template_dict[file_path](content, query, 'GET')
+            content = content.encode('utf-8')
+            self.send_response(res)
+            self.send_header('Referrer-Policy', 'no-referrer')
+            self.send_header('Content-Type', 'text/html;charset=utf-8')
+            self.send_header('Content-Length', len(content))
+            self.end_headers()
+            self.wfile.write(content)
 
         elif extension == 'jpg':
+            self.send_response(200)
+            self.send_header('Referrer-Policy', 'no-referrer')
             with open(file_path, 'rb') as f:
                 content = f.read()
             self.send_header('Content-Type', 'image/jpg')

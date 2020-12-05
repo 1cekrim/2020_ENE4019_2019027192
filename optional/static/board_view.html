@@ -1,0 +1,29 @@
+{% extends "board_base.html" %}
+
+{% block content_board %}
+<div>
+    <div class="header_nav" style="font-size: 2.5em;
+    margin-bottom: 20px; padding-bottom: 10px;
+    border-bottom: 2px #000000 solid;">
+        {% block title %}{{ board_title }}{% endblock %}
+    </div>
+    <article class="card">
+        <header class="card-header" style="font-size: 14px;">
+            <div class="d-inline">
+                <span class="font-weight-bold" id="title">{{ row[0] }}</span>
+            </div>
+            <div class="d-inline float-right">
+                <span id="date">{{ row[3] }}</span>
+            </div>
+            <hr class="header_divider">
+            <div class="d-inline">
+                <span class="font-weight-normal" id="author">{{ row[2] }}</span>
+            </div>
+        </header>
+        <div class="card-body">
+            {{ row[1] }}
+        </div>
+    </article>
+</div>
+{% endblock %}
+

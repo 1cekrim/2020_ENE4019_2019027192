@@ -1,0 +1,32 @@
+{% extends "board_base.html" %}
+
+{% block content_board %}
+<div>
+    <div class="header_nav" style="font-size: 2.5em;
+    margin-bottom: 20px; padding-bottom: 10px;
+    border-bottom: 2px #000000 solid;">
+        {% block title %}{{ board_title }}{% endblock %}
+    </div>
+    <table class="table tale-striped table-hover">
+        <thead>
+            <tr>
+                <th>번호</th>
+                <th>제목</th>
+                <th>글쓴이</th>
+                <th>작성일</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>{{ row[0] }}</td>
+                <td><a class="text-dark" href="./board_view.html?board={{ board_title }}&id={{ row[0] }}">{{ row[1] }}</a></td>
+                <td>{{ row[2] }}</td>
+                <td>{{ row[3] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button type="button" class="btn btn-success" onClick="location.href='./board_write.html?board={{ board_title }}'">글 작성하기</button>
+</div>
+{% endblock %}

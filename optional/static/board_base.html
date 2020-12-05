@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set activatedPage = "board" %}
+
+{% block content %}
+<style>
+    .sidebar_top {
+        font-size: 2em;
+        font-weight: bold;
+        padding-bottom: 10px;
+        margin-top: 16px;
+        border-bottom: 2px #000000 solid;
+    }
+
+    .sidebar_list {
+        list-style: none;
+        display: block;
+        padding-inline-start: 0px;
+    }
+
+    .sidebar_list>li {
+        margin: 0;
+        padding: 0;
+    }
+
+    .sidebar_list>li>a {
+        font-weight: bold;
+        color: black;
+        border-bottom: 1px #999999 solid;
+        display: block;
+        font-size: 16px;
+        height: 40px;
+        line-height: 30px;
+        padding-top: 5px;
+        padding-bottom: 5px;
+    }
+
+    .sidebar_list>li>a.selected {
+        color: steelblue;
+    }
+
+    .sidebar_list>li>a:hover {
+        color: steelblue;
+        text-decoration: none;
+    }
+
+    .sidebar_list>li>a:link {
+        text-decoration: none;
+    }
+
+    .sidebar_list>li>a:visited {
+        text-decoration: none;
+    }
+</style>
+<div class="row">
+    <!-- 사이드바 시작 -->
+    <aside class="col-md-3 d-none d-md-block">
+        <div class="sidebar_top">
+            <h2>게시판</h2>
+        </div>
+        <ul class="sidebar_list">
+            <li>
+                <a href="{{ url_for('board') }}?board=notice" class="{{ 'selected' if board_title == 'notice' else '' }}">공지사항</a>
+            </li>
+            <li>
+                <a href="{{ url_for('board') }}?board=free" class="{{ 'selected' if board_title == 'free' else '' }}">자유게시판</a>
+            </li>
+        </ul>
+    </aside>
+    <main class="col-md-9">
+        {% block content_board %}{% endblock %}
+    </main>
+</div>
+{% endblock %}
