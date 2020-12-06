@@ -1,0 +1,656 @@
+<h3>1. 템플릿 구현</h3>
+<p>게시판을 구현하기 위해 템플릿 엔진 jinja2를 사용했습니다.</p>
+<p>현재 제 블로그의 html 구조는 다음과 같습니다.</p>
+
+base.html</br>
+ㄴboard_base.html</br>
+  ㄴboard.html</br>
+  ㄴboard_view.html</br>
+  ㄴboard_write.html</br>
+ㄴindex.html</br>
+
+<p>자식 html은 부모 html의 "{% block content %}{% endblock %}" 부분에 삽입됩니다.</p>
+<p>예를 들어, index.html의 내용은 다음과 같습니다.</p>
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%"> 1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+   10
+   11
+   12
+   13
+   14
+   15
+   16
+   17
+   18
+   19
+   20
+   21
+   22
+   23
+   24</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">extends</span> <span style="background-color: #fff0f0">&quot;base.html&quot;</span> <span style="color: #557799">%}</span>
+   <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">set</span> <span style="color: #996633">activatedPage</span> <span style="color: #333333">=</span> <span style="background-color: #fff0f0">&quot;index&quot;</span> <span style="color: #557799">%}</span>
+   
+   <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">block</span> <span style="color: #996633">content</span> <span style="color: #557799">%}</span>
+   <span style="color: #007700">&lt;h2&gt;</span><span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">block</span> <span style="color: #996633">title</span> <span style="color: #557799">%}</span>Home<span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">endblock</span> <span style="color: #557799">%}</span><span style="color: #007700">&lt;/h2&gt;</span>
+   <span style="color: #007700">&lt;p&gt;</span>python3를 이용해 제작한 https 서버와 블로그입니다.<span style="color: #007700">&lt;/p&gt;</span>
+   <span style="color: #007700">&lt;p&gt;</span>제작자: 2019027192 김현수<span style="color: #007700">&lt;/p&gt;</span>
+   <span style="color: #007700">&lt;/br&gt;</span>
+   <span style="color: #007700">&lt;/br&gt;</span>
+   <span style="color: #007700">&lt;/br&gt;</span>
+   <span style="color: #007700">&lt;h3&gt;</span>
+       사용한 라이브러리
+   <span style="color: #007700">&lt;/h3&gt;</span>
+   <span style="color: #007700">&lt;p&gt;</span>
+   <span style="color: #007700">&lt;ol&gt;</span>
+       <span style="color: #007700">&lt;li&gt;</span>멀리스레드 http 서버 - http.server 모듈<span style="color: #007700">&lt;/li&gt;</span>
+       <span style="color: #007700">&lt;li&gt;</span>https - ssl 모듈<span style="color: #007700">&lt;/li&gt;</span>
+       <span style="color: #007700">&lt;li&gt;</span>https용 인증서-key 제작 - openssl<span style="color: #007700">&lt;/li&gt;</span>
+       <span style="color: #007700">&lt;li&gt;</span>request의 파라미터 파싱 - urllib.parse 모듈<span style="color: #007700">&lt;/li&gt;</span>
+       <span style="color: #007700">&lt;li&gt;</span>템플릿 - jinja2 모듈<span style="color: #007700">&lt;/li&gt;</span>
+       <span style="color: #007700">&lt;li&gt;</span>데이터베이스 - sqlite3 모듈<span style="color: #007700">&lt;/li&gt;</span>
+   <span style="color: #007700">&lt;/ol&gt;</span>
+   <span style="color: #007700">&lt;/p&gt;</span>
+   <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">endblock</span> <span style="color: #557799">%}</span>
+   </pre></td></tr></table></div>
+
+<p>이 index.html을 jinja2를 이용해 템플릿 적용을 하고 나면, block content 부분이 base.html에 삽입돼 지금과 같은 index.html 결과물이 나오게 됩니다.</p>
+
+<p>jinja2를 이용해 템플릿을 적용하려면, 기존의 https 서버 코드를 수정해야 합니다.</p>
+<p>기존 구현은 html 파일을 로드해 바로 클라이언트에게 보내 줬지만, 이제 페이지마다 함수를 만들어 html 내용을 처리한 다음 클라이언트에게 보내야 합니다.</p>
+<p>이를 위해 다음과 같은 데코레이터와 함수를 추가했습니다.</p>
+
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%"> 1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+   10
+   11
+   12
+   13
+   14</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #008800; font-weight: bold">def</span> <span style="color: #0066BB; font-weight: bold">https_handle</span>(link, urlfor):
+       <span style="color: #008800; font-weight: bold">def</span> <span style="color: #0066BB; font-weight: bold">deco</span>(func):
+           <span style="color: #008800; font-weight: bold">def</span> <span style="color: #0066BB; font-weight: bold">inner</span>(<span style="color: #333333">*</span>args, <span style="color: #333333">**</span>kwargs):
+               res <span style="color: #333333">=</span> func(<span style="color: #333333">*</span>args, <span style="color: #333333">**</span>kwagrs)
+               <span style="color: #008800; font-weight: bold">return</span> res
+           urls[urlfor] <span style="color: #333333">=</span> link
+           handler<span style="color: #333333">.</span>template_dict[link] <span style="color: #333333">=</span> func
+           <span style="color: #008800; font-weight: bold">return</span> inner
+       <span style="color: #008800; font-weight: bold">return</span> deco
+   
+   <span style="color: #008800; font-weight: bold">def</span> <span style="color: #0066BB; font-weight: bold">get_template</span>(content):
+       template <span style="color: #333333">=</span> Environment(loader<span style="color: #333333">=</span>FileSystemLoader(<span style="background-color: #fff0f0">&#39;static/&#39;</span>))<span style="color: #333333">.</span>from_string(content)
+       template<span style="color: #333333">.</span>globals[<span style="background-color: #fff0f0">&#39;url_for&#39;</span>] <span style="color: #333333">=</span> url_for
+       <span style="color: #008800; font-weight: bold">return</span> template
+   </pre></td></tr></table></div>
+
+   
+<p>이제 index.html의 핸들러를 다음과 같이 구현할 수 있습니다.</p>
+
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%">1
+    2
+    3
+    4
+    5
+    6
+    7
+    8</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #555555; font-weight: bold">@https_handle</span>(<span style="background-color: #fff0f0">&#39;./static/index.html&#39;</span>, <span style="background-color: #fff0f0">&#39;index&#39;</span>)
+    <span style="color: #008800; font-weight: bold">def</span> <span style="color: #0066BB; font-weight: bold">index</span>(content, query, method):
+        <span style="color: #008800; font-weight: bold">if</span> (method <span style="color: #333333">!=</span> <span style="background-color: #fff0f0">&#39;GET&#39;</span>):
+            <span style="color: #008800; font-weight: bold">return</span> <span style="background-color: #fff0f0">&#39;405 method not allowed&#39;</span>, <span style="color: #0000DD; font-weight: bold">405</span>
+    
+        template <span style="color: #333333">=</span> get_template(content)
+        result <span style="color: #333333">=</span> template<span style="color: #333333">.</span>render()
+        <span style="color: #008800; font-weight: bold">return</span> result, <span style="color: #0000DD; font-weight: bold">200</span>
+    </pre></td></tr></table></div>
+
+<p>클라이언트에 의해 ./static/index.html이 요청됐을 때, index 함수가 호출되어 템플릿을 렌더링 한 뒤에 응답코드와 함께 반환합니다.</p>
+
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%"> 1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+   10
+   11</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #008800; font-weight: bold">if</span> extension <span style="color: #333333">==</span> <span style="background-color: #fff0f0">&#39;html&#39;</span>:
+       <span style="color: #008800; font-weight: bold">with</span> <span style="color: #007020">open</span>(file_path, <span style="background-color: #fff0f0">&#39;r&#39;</span>, encoding<span style="color: #333333">=</span><span style="background-color: #fff0f0">&#39;utf8&#39;</span>) <span style="color: #008800; font-weight: bold">as</span> f:
+           content <span style="color: #333333">=</span> f<span style="color: #333333">.</span>read()
+       content, res <span style="color: #333333">=</span> template_dict[file_path](content, query, <span style="background-color: #fff0f0">&#39;GET&#39;</span>)
+       content <span style="color: #333333">=</span> content<span style="color: #333333">.</span>encode(<span style="background-color: #fff0f0">&#39;utf-8&#39;</span>)
+       <span style="color: #007020">self</span><span style="color: #333333">.</span>send_response(res)
+       <span style="color: #007020">self</span><span style="color: #333333">.</span>send_header(<span style="background-color: #fff0f0">&#39;Referrer-Policy&#39;</span>, <span style="background-color: #fff0f0">&#39;no-referrer&#39;</span>)
+       <span style="color: #007020">self</span><span style="color: #333333">.</span>send_header(<span style="background-color: #fff0f0">&#39;Content-Type&#39;</span>, <span style="background-color: #fff0f0">&#39;text/html;charset=utf-8&#39;</span>)
+       <span style="color: #007020">self</span><span style="color: #333333">.</span>send_header(<span style="background-color: #fff0f0">&#39;Content-Length&#39;</span>, <span style="color: #007020">len</span>(content))
+       <span style="color: #007020">self</span><span style="color: #333333">.</span>end_headers()
+       <span style="color: #007020">self</span><span style="color: #333333">.</span>wfile<span style="color: #333333">.</span>write(content)
+   </pre></td></tr></table></div>
+   
+<p>do_GET에서 html 파일은 위와 같이 처리됩니다. template_dict에서 file_path를 key로 해서 적절한 핸들러 함수를 가져오고, 이 함수에 의해 처리된 응답 html과 응답코드가 클라이언트에게 보내지게 됩니다. </p>
+
+<h3>2. 게시판 읽기 구현</h3>
+
+<p>게시판 읽기는 board.html과 board_view.html을 이용해 구현했습니다.</p>
+<p>board.html과 board_view.html이 어떻게 구현되어 있는지 설명하겠습니다.</p>
+
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%"> 1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+   10
+   11
+   12
+   13
+   14
+   15
+   16
+   17
+   18
+   19
+   20
+   21
+   22
+   23
+   24
+   25
+   26
+   27
+   28
+   29
+   30
+   31
+   32
+   33
+   34
+   35
+   36
+   37
+   38
+   39
+   40
+   41
+   42
+   43
+   44
+   45
+   46
+   47
+   48
+   49
+   50
+   51
+   52
+   53
+   54
+   55
+   56
+   57
+   58
+   59
+   60
+   61
+   62
+   63
+   64
+   65</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #555555; font-weight: bold">@https_handle</span>(<span style="background-color: #fff0f0">&#39;./static/board.html&#39;</span>, <span style="background-color: #fff0f0">&#39;board&#39;</span>)
+   <span style="color: #008800; font-weight: bold">def</span> <span style="color: #0066BB; font-weight: bold">board</span>(content, query, method):
+       <span style="color: #008800; font-weight: bold">if</span> (method <span style="color: #333333">!=</span> <span style="background-color: #fff0f0">&#39;GET&#39;</span>):
+           <span style="color: #008800; font-weight: bold">return</span> <span style="background-color: #fff0f0">&#39;405 method not allowed&#39;</span>, <span style="color: #0000DD; font-weight: bold">405</span>
+   
+       <span style="color: #008800; font-weight: bold">if</span> <span style="background-color: #fff0f0">&#39;board&#39;</span> <span style="color: #000000; font-weight: bold">not</span> <span style="color: #000000; font-weight: bold">in</span> query:
+           query[<span style="background-color: #fff0f0">&#39;board&#39;</span>] <span style="color: #333333">=</span> <span style="background-color: #fff0f0">&#39;notice&#39;</span>
+   
+       conn <span style="color: #333333">=</span> sqlite3<span style="color: #333333">.</span>connect(<span style="background-color: #fff0f0">&quot;./blog.db&quot;</span>)
+       cursor <span style="color: #333333">=</span> conn<span style="color: #333333">.</span>cursor()
+   
+       <span style="color: #008800; font-weight: bold">try</span>:
+           cursor<span style="color: #333333">.</span>execute(
+               f<span style="background-color: #fff0f0">&#39;select `id`, `title`, `author`, `time` from {query[&quot;board&quot;]}&#39;</span>)
+       <span style="color: #008800; font-weight: bold">except</span> <span style="color: #FF0000; font-weight: bold">Exception</span> <span style="color: #008800; font-weight: bold">as</span> e:
+           <span style="color: #008800; font-weight: bold">return</span> <span style="color: #007020">str</span>(e), <span style="color: #0000DD; font-weight: bold">503</span>
+   
+       rows <span style="color: #333333">=</span> cursor<span style="color: #333333">.</span>fetchall()
+   
+       template <span style="color: #333333">=</span> get_template(content)
+       result <span style="color: #333333">=</span> template<span style="color: #333333">.</span>render(rows<span style="color: #333333">=</span>rows, board_title<span style="color: #333333">=</span>query[<span style="background-color: #fff0f0">&#39;board&#39;</span>])
+       <span style="color: #008800; font-weight: bold">return</span> result, <span style="color: #0000DD; font-weight: bold">200</span>
+   
+   <span style="color: #555555; font-weight: bold">@https_handle</span>(<span style="background-color: #fff0f0">&#39;./static/board_view.html&#39;</span>, <span style="background-color: #fff0f0">&#39;board_view&#39;</span>)
+   <span style="color: #008800; font-weight: bold">def</span> <span style="color: #0066BB; font-weight: bold">board_view</span>(content, param, method):
+       <span style="color: #008800; font-weight: bold">if</span> (method <span style="color: #333333">!=</span> <span style="background-color: #fff0f0">&#39;GET&#39;</span>):
+           <span style="color: #008800; font-weight: bold">return</span> <span style="background-color: #fff0f0">&#39;405 method not allowed&#39;</span>, <span style="color: #0000DD; font-weight: bold">405</span>
+   
+       <span style="color: #008800; font-weight: bold">if</span> <span style="background-color: #fff0f0">&#39;id&#39;</span> <span style="color: #000000; font-weight: bold">not</span> <span style="color: #000000; font-weight: bold">in</span> param <span style="color: #000000; font-weight: bold">or</span> <span style="color: #000000; font-weight: bold">not</span> param[<span style="background-color: #fff0f0">&#39;id&#39;</span>]<span style="color: #333333">.</span>isdecimal():
+           <span style="color: #008800; font-weight: bold">return</span> <span style="background-color: #fff0f0">&#39;invalid parameter&#39;</span>, <span style="color: #0000DD; font-weight: bold">400</span>
+       
+   
+       <span style="color: #007020">id</span> <span style="color: #333333">=</span> <span style="color: #007020">int</span>(param[<span style="background-color: #fff0f0">&#39;id&#39;</span>])
+   
+       conn <span style="color: #333333">=</span> sqlite3<span style="color: #333333">.</span>connect(<span style="background-color: #fff0f0">&quot;./blog.db&quot;</span>)
+       cursor <span style="color: #333333">=</span> conn<span style="color: #333333">.</span>cursor()
+   
+       <span style="color: #008800; font-weight: bold">try</span>:
+           cursor<span style="color: #333333">.</span>execute(
+               <span style="background-color: #fff0f0">&#39;select `title`, `content`, `author`, `time`&#39;</span>
+               f<span style="background-color: #fff0f0">&#39;from {param[&quot;board&quot;]} where id = {id}&#39;</span>)
+   
+       <span style="color: #008800; font-weight: bold">except</span> <span style="color: #FF0000; font-weight: bold">Exception</span> <span style="color: #008800; font-weight: bold">as</span> e:
+           <span style="color: #008800; font-weight: bold">return</span> <span style="color: #007020">str</span>(e), <span style="color: #0000DD; font-weight: bold">503</span>
+   
+       row <span style="color: #333333">=</span> cursor<span style="color: #333333">.</span>fetchone()
+       row <span style="color: #333333">=</span> <span style="color: #007020">list</span>(row)
+   
+       <span style="color: #008800; font-weight: bold">if</span> row <span style="color: #000000; font-weight: bold">is</span> <span style="color: #008800; font-weight: bold">None</span>:
+           <span style="color: #008800; font-weight: bold">return</span> <span style="background-color: #fff0f0">&#39;post not exist&#39;</span>, <span style="color: #0000DD; font-weight: bold">404</span>
+   
+       post_name <span style="color: #333333">=</span> row[<span style="color: #0000DD; font-weight: bold">1</span>]
+       path <span style="color: #333333">=</span> f<span style="background-color: #fff0f0">&#39;./static/posts/{post_name}&#39;</span>
+   
+       <span style="color: #008800; font-weight: bold">import</span> <span style="color: #0e84b5; font-weight: bold">os.path</span>
+       <span style="color: #008800; font-weight: bold">if</span> <span style="color: #000000; font-weight: bold">not</span> os<span style="color: #333333">.</span>path<span style="color: #333333">.</span>exists(path):
+           <span style="color: #008800; font-weight: bold">return</span> f<span style="background-color: #fff0f0">&#39;internal server error. post name: {post_name}&#39;</span>, <span style="color: #0000DD; font-weight: bold">500</span>
+   
+       <span style="color: #008800; font-weight: bold">with</span> <span style="color: #007020">open</span>(path, <span style="background-color: #fff0f0">&#39;r&#39;</span>, encoding<span style="color: #333333">=</span><span style="background-color: #fff0f0">&#39;utf8&#39;</span>) <span style="color: #008800; font-weight: bold">as</span> f:
+           row[<span style="color: #0000DD; font-weight: bold">1</span>] <span style="color: #333333">=</span> f<span style="color: #333333">.</span>read()
+   
+       template <span style="color: #333333">=</span> get_template(content)
+       result <span style="color: #333333">=</span> template<span style="color: #333333">.</span>render(row<span style="color: #333333">=</span>row, board_title<span style="color: #333333">=</span>param[<span style="background-color: #fff0f0">&quot;board&quot;</span>])
+   
+       <span style="color: #008800; font-weight: bold">return</span> result, <span style="color: #0000DD; font-weight: bold">200</span>
+   </pre></td></tr></table></div>
+
+<p>board.html은 파라미터 board로, 어느 게시판에 접속했는지를 받습니다. 만약 비어있다면 notice 게시판으로 설정합니다.</p>
+<p>notice, free 게시판의 게시물은 blog.db에 저장됩니다. sqlite3를 이용해 blog.db에 접속하고, cursor를 얻어옵니다.</p>
+<p>그 다음 해당 게시판에 있는 게시물 전체를 불러오는 sql 쿼리를 요청합니다.</p>
+<p>fetchall로 쿼리의 응답을 모두 가져오고, 이를 템플릿 렌더러에 넘겨줍니다.</p>
+<p>board.html 템플릿은 다음과 같이 되어있습니다.</p>
+
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%"> 1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+   10
+   11
+   12
+   13
+   14
+   15
+   16
+   17
+   18
+   19
+   20
+   21
+   22
+   23
+   24
+   25
+   26
+   27
+   28
+   29
+   30
+   31
+   32</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">extends</span> <span style="background-color: #fff0f0">&quot;board_base.html&quot;</span> <span style="color: #557799">%}</span>
+   
+   <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">block</span> <span style="color: #996633">content_board</span> <span style="color: #557799">%}</span>
+   <span style="color: #007700">&lt;div&gt;</span>
+       <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;header_nav&quot;</span> <span style="color: #0000CC">style=</span><span style="background-color: #fff0f0">&quot;font-size: 2.5em;</span>
+   <span style="background-color: #fff0f0">    margin-bottom: 20px; padding-bottom: 10px;</span>
+   <span style="background-color: #fff0f0">    border-bottom: 2px #000000 solid;&quot;</span><span style="color: #007700">&gt;</span>
+           <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">block</span> <span style="color: #996633">title</span> <span style="color: #557799">%}{{</span> <span style="color: #996633">board_title</span> <span style="color: #557799">}}{%</span> <span style="color: #008800; font-weight: bold">endblock</span> <span style="color: #557799">%}</span>
+       <span style="color: #007700">&lt;/div&gt;</span>
+       <span style="color: #007700">&lt;table</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;table tale-striped table-hover&quot;</span><span style="color: #007700">&gt;</span>
+           <span style="color: #007700">&lt;thead&gt;</span>
+               <span style="color: #007700">&lt;tr&gt;</span>
+                   <span style="color: #007700">&lt;th&gt;</span>번호<span style="color: #007700">&lt;/th&gt;</span>
+                   <span style="color: #007700">&lt;th&gt;</span>제목<span style="color: #007700">&lt;/th&gt;</span>
+                   <span style="color: #007700">&lt;th&gt;</span>글쓴이<span style="color: #007700">&lt;/th&gt;</span>
+                   <span style="color: #007700">&lt;th&gt;</span>작성일<span style="color: #007700">&lt;/th&gt;</span>
+               <span style="color: #007700">&lt;/tr&gt;</span>
+           <span style="color: #007700">&lt;/thead&gt;</span>
+           <span style="color: #007700">&lt;tbody&gt;</span>
+               <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">for</span> <span style="color: #996633">row</span> <span style="color: #008800; font-weight: bold">in</span> <span style="color: #996633">rows</span> <span style="color: #557799">%}</span>
+               <span style="color: #007700">&lt;tr&gt;</span>
+                   <span style="color: #007700">&lt;td&gt;</span><span style="color: #557799">{{</span> <span style="color: #996633">row</span><span style="color: #333333">[</span><span style="color: #6600EE; font-weight: bold">0</span><span style="color: #333333">]</span> <span style="color: #557799">}}</span><span style="color: #007700">&lt;/td&gt;</span>
+                   <span style="color: #007700">&lt;td&gt;&lt;a</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;text-dark&quot;</span> <span style="color: #0000CC">href=</span><span style="background-color: #fff0f0">&quot;./board_view.html?board=</span><span style="color: #557799">{{</span> <span style="color: #996633">board_title</span> <span style="color: #557799">}}</span><span style="background-color: #fff0f0">&amp;id=</span><span style="color: #557799">{{</span> <span style="color: #996633">row</span><span style="color: #333333">[</span><span style="color: #6600EE; font-weight: bold">0</span><span style="color: #333333">]</span> <span style="color: #557799">}}</span><span style="background-color: #fff0f0">&quot;</span><span style="color: #007700">&gt;</span><span style="color: #557799">{{</span> <span style="color: #996633">row</span><span style="color: #333333">[</span><span style="color: #6600EE; font-weight: bold">1</span><span style="color: #333333">]</span> <span style="color: #557799">}}</span><span style="color: #007700">&lt;/a&gt;&lt;/td&gt;</span>
+                   <span style="color: #007700">&lt;td&gt;</span><span style="color: #557799">{{</span> <span style="color: #996633">row</span><span style="color: #333333">[</span><span style="color: #6600EE; font-weight: bold">2</span><span style="color: #333333">]</span> <span style="color: #557799">}}</span><span style="color: #007700">&lt;/td&gt;</span>
+                   <span style="color: #007700">&lt;td&gt;</span><span style="color: #557799">{{</span> <span style="color: #996633">row</span><span style="color: #333333">[</span><span style="color: #6600EE; font-weight: bold">3</span><span style="color: #333333">]</span> <span style="color: #557799">}}</span><span style="color: #007700">&lt;/td&gt;</span>
+               <span style="color: #007700">&lt;/tr&gt;</span>
+               <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">endfor</span> <span style="color: #557799">%}</span>
+           <span style="color: #007700">&lt;/tbody&gt;</span>
+       <span style="color: #007700">&lt;/table&gt;</span>
+       <span style="color: #007700">&lt;button</span> <span style="color: #0000CC">type=</span><span style="background-color: #fff0f0">&quot;button&quot;</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;btn btn-success&quot;</span> <span style="color: #0000CC">onClick=</span><span style="background-color: #fff0f0">&quot;location.href=&#39;./board_write.html?board=</span><span style="color: #557799">{{</span> <span style="color: #996633">board_title</span> <span style="color: #557799">}}</span><span style="background-color: #fff0f0">&#39;&quot;</span><span style="color: #007700">&gt;</span>글 작성하기<span style="color: #007700">&lt;/button&gt;</span>
+   <span style="color: #007700">&lt;/div&gt;</span>
+   <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">endblock</span> <span style="color: #557799">%}</span>
+   </pre></td></tr></table></div>
+
+<p>템플릿 렌더러에 넘겨진 sql 응답은, 20~27 라인의 for문에 의해 게시판 목록에 출력되게 됩니다.</p>
+
+<p>목록의 게시물 이름을 클릭하면, board_view.html로 이동해 게시물 내용을 열람할 수 있게 했습니다.</p>
+
+<p>board_view.html는 파라미터 board로 어느 게시판에 접속했는지, id로 몇번째 글을 열람하는지를 받습니다.</p>
+
+<p>게시물의 내용 역시 blog.db에 저장되어 있습니다. 파라미터로 넘어온 board와 id를 이용해, 특정 테이블에서 특정 row를 읽어달라는 sql 쿼리를 요청합니다.</p>
+
+<p>fetchone로 sql 응답을 받습니다. 만약 게시물이 없다면 404 에러를 송신합니다.</p>
+
+<p>content 컬럼에는 post의 내용이 저장된 html 파일의 이름이 저장되어 있습니다. 해당 컬럼의 값을 이용해 path를 얻고, 이를 읽어와 템플릿 렌더러에 넘겨줍니다.</p>
+
+<p>board_view.html의 템플릿은 다음과 같습니다.</p>
+
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%"> 1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+   10
+   11
+   12
+   13
+   14
+   15
+   16
+   17
+   18
+   19
+   20
+   21
+   22
+   23
+   24
+   25
+   26
+   27
+   28</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">extends</span> <span style="background-color: #fff0f0">&quot;board_base.html&quot;</span> <span style="color: #557799">%}</span>
+   
+   <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">block</span> <span style="color: #996633">content_board</span> <span style="color: #557799">%}</span>
+   <span style="color: #007700">&lt;div&gt;</span>
+       <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;header_nav&quot;</span> <span style="color: #0000CC">style=</span><span style="background-color: #fff0f0">&quot;font-size: 2.5em;</span>
+   <span style="background-color: #fff0f0">    margin-bottom: 20px; padding-bottom: 10px;</span>
+   <span style="background-color: #fff0f0">    border-bottom: 2px #000000 solid;&quot;</span><span style="color: #007700">&gt;</span>
+           <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">block</span> <span style="color: #996633">title</span> <span style="color: #557799">%}{{</span> <span style="color: #996633">board_title</span> <span style="color: #557799">}}{%</span> <span style="color: #008800; font-weight: bold">endblock</span> <span style="color: #557799">%}</span>
+       <span style="color: #007700">&lt;/div&gt;</span>
+       <span style="color: #007700">&lt;article</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;card&quot;</span><span style="color: #007700">&gt;</span>
+           <span style="color: #007700">&lt;header</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;card-header&quot;</span> <span style="color: #0000CC">style=</span><span style="background-color: #fff0f0">&quot;font-size: 14px;&quot;</span><span style="color: #007700">&gt;</span>
+               <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;d-inline&quot;</span><span style="color: #007700">&gt;</span>
+                   <span style="color: #007700">&lt;span</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;font-weight-bold&quot;</span> <span style="color: #0000CC">id=</span><span style="background-color: #fff0f0">&quot;title&quot;</span><span style="color: #007700">&gt;</span><span style="color: #557799">{{</span> <span style="color: #996633">row</span><span style="color: #333333">[</span><span style="color: #6600EE; font-weight: bold">0</span><span style="color: #333333">]</span> <span style="color: #557799">}}</span><span style="color: #007700">&lt;/span&gt;</span>
+               <span style="color: #007700">&lt;/div&gt;</span>
+               <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;d-inline float-right&quot;</span><span style="color: #007700">&gt;</span>
+                   <span style="color: #007700">&lt;span</span> <span style="color: #0000CC">id=</span><span style="background-color: #fff0f0">&quot;date&quot;</span><span style="color: #007700">&gt;</span><span style="color: #557799">{{</span> <span style="color: #996633">row</span><span style="color: #333333">[</span><span style="color: #6600EE; font-weight: bold">3</span><span style="color: #333333">]</span> <span style="color: #557799">}}</span><span style="color: #007700">&lt;/span&gt;</span>
+               <span style="color: #007700">&lt;/div&gt;</span>
+               <span style="color: #007700">&lt;hr</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;header_divider&quot;</span><span style="color: #007700">&gt;</span>
+               <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;d-inline&quot;</span><span style="color: #007700">&gt;</span>
+                   <span style="color: #007700">&lt;span</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;font-weight-normal&quot;</span> <span style="color: #0000CC">id=</span><span style="background-color: #fff0f0">&quot;author&quot;</span><span style="color: #007700">&gt;</span><span style="color: #557799">{{</span> <span style="color: #996633">row</span><span style="color: #333333">[</span><span style="color: #6600EE; font-weight: bold">2</span><span style="color: #333333">]</span> <span style="color: #557799">}}</span><span style="color: #007700">&lt;/span&gt;</span>
+               <span style="color: #007700">&lt;/div&gt;</span>
+           <span style="color: #007700">&lt;/header&gt;</span>
+           <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;card-body&quot;</span><span style="color: #007700">&gt;</span>
+               <span style="color: #557799">{{</span> <span style="color: #996633">row</span><span style="color: #333333">[</span><span style="color: #6600EE; font-weight: bold">1</span><span style="color: #333333">]</span> <span style="color: #557799">}}</span>
+           <span style="color: #007700">&lt;/div&gt;</span>
+       <span style="color: #007700">&lt;/article&gt;</span>
+   <span style="color: #007700">&lt;/div&gt;</span>
+   <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">endblock</span> <span style="color: #557799">%}</span>
+   </pre></td></tr></table></div>
+   
+<p>board.html과 비슷합니다. row 변수로 넘어온 게시물 내용을 적절한 위치에 위치시킵니다.</p>
+
+위와 같이 게시판 읽기를 구현했습니다.
+
+<h3>3. 게시판 쓰기 구현</h3>
+
+<p>게시판 쓰기는 board_write.html과 write.html을 이용해 구현했습니다.</p>
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%"> 1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+   10
+   11
+   12
+   13
+   14
+   15
+   16
+   17
+   18
+   19
+   20
+   21
+   22
+   23
+   24
+   25
+   26
+   27
+   28
+   29
+   30
+   31
+   32
+   33
+   34
+   35
+   36
+   37
+   38
+   39
+   40
+   41
+   42
+   43
+   44
+   45
+   46
+   47</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #555555; font-weight: bold">@https_handle</span>(<span style="background-color: #fff0f0">&#39;./static/board_write.html&#39;</span>, <span style="background-color: #fff0f0">&#39;board_write&#39;</span>)
+   <span style="color: #008800; font-weight: bold">def</span> <span style="color: #0066BB; font-weight: bold">board_write</span>(content, query, method):
+       <span style="color: #008800; font-weight: bold">if</span> (method <span style="color: #333333">!=</span> <span style="background-color: #fff0f0">&#39;GET&#39;</span>):
+           <span style="color: #008800; font-weight: bold">return</span> <span style="background-color: #fff0f0">&#39;405 method not allowed&#39;</span>, <span style="color: #0000DD; font-weight: bold">405</span>
+   
+       <span style="color: #008800; font-weight: bold">if</span> query[<span style="background-color: #fff0f0">&#39;board&#39;</span>] <span style="color: #333333">!=</span> <span style="background-color: #fff0f0">&#39;free&#39;</span>:
+           <span style="color: #008800; font-weight: bold">return</span> f<span style="background-color: #fff0f0">&quot;&lt;script&gt;alert(&#39;You do not have permission.&#39;);location.href=&#39;./board.html?board={query[&#39;board&#39;]}&#39;&lt;/script&gt;&quot;</span>, <span style="color: #0000DD; font-weight: bold">200</span>
+   
+       template <span style="color: #333333">=</span> get_template(content)
+       result <span style="color: #333333">=</span> template<span style="color: #333333">.</span>render(board_title<span style="color: #333333">=</span>query[<span style="background-color: #fff0f0">&#39;board&#39;</span>])
+       <span style="color: #008800; font-weight: bold">return</span> result, <span style="color: #0000DD; font-weight: bold">200</span>
+   
+   <span style="color: #555555; font-weight: bold">@https_handle</span>(<span style="background-color: #fff0f0">&#39;./static/write.html&#39;</span>, <span style="background-color: #fff0f0">&#39;write&#39;</span>)
+   <span style="color: #008800; font-weight: bold">def</span> <span style="color: #0066BB; font-weight: bold">write</span>(content, query, method):
+       <span style="color: #008800; font-weight: bold">if</span> (method <span style="color: #333333">!=</span> <span style="background-color: #fff0f0">&#39;POST&#39;</span>):
+           <span style="color: #008800; font-weight: bold">return</span> <span style="background-color: #fff0f0">&#39;405 method not allowed&#39;</span>, <span style="color: #0000DD; font-weight: bold">405</span>
+   
+       conn <span style="color: #333333">=</span> sqlite3<span style="color: #333333">.</span>connect(<span style="background-color: #fff0f0">&quot;./blog.db&quot;</span>)
+       cursor <span style="color: #333333">=</span> conn<span style="color: #333333">.</span>cursor()
+   
+       <span style="color: #008800; font-weight: bold">if</span> query[<span style="background-color: #fff0f0">&#39;board_title&#39;</span>] <span style="color: #333333">!=</span> <span style="background-color: #fff0f0">&#39;free&#39;</span>:
+           <span style="color: #008800; font-weight: bold">return</span> f<span style="background-color: #fff0f0">&quot;&lt;script&gt;alert(&#39;You do not have permission.&#39;);location.href=&#39;./board.html?board={query[&#39;board_title&#39;]}&#39;&lt;/script&gt;&quot;</span>, <span style="color: #0000DD; font-weight: bold">400</span>
+   
+       <span style="color: #008800; font-weight: bold">if</span> <span style="color: #007020">len</span>(query[<span style="background-color: #fff0f0">&#39;title&#39;</span>]) <span style="color: #333333">==</span> <span style="color: #0000DD; font-weight: bold">0</span> <span style="color: #000000; font-weight: bold">or</span> <span style="color: #007020">len</span>(query[<span style="background-color: #fff0f0">&#39;content&#39;</span>]) <span style="color: #333333">==</span> <span style="color: #0000DD; font-weight: bold">0</span> <span style="color: #000000; font-weight: bold">or</span> <span style="color: #007020">len</span>(query[<span style="background-color: #fff0f0">&#39;author&#39;</span>]) <span style="color: #333333">==</span> <span style="color: #0000DD; font-weight: bold">0</span>:
+           <span style="color: #008800; font-weight: bold">return</span> f<span style="background-color: #fff0f0">&quot;&lt;script&gt;alert(&#39;invalid title, content, or author&#39;);location.href=&#39;./board.html?board={query[&#39;board_title&#39;]}&#39;&lt;/script&gt;&quot;</span>, <span style="color: #0000DD; font-weight: bold">400</span>
+       
+       <span style="color: #008800; font-weight: bold">try</span>:
+           cursor<span style="color: #333333">.</span>execute(f<span style="background-color: #fff0f0">&quot;select count(*) from `{query[&#39;board_title&#39;]}`&quot;</span>)
+           num <span style="color: #333333">=</span> cursor<span style="color: #333333">.</span>fetchone()[<span style="color: #0000DD; font-weight: bold">0</span>]
+       <span style="color: #008800; font-weight: bold">except</span> <span style="color: #FF0000; font-weight: bold">Exception</span> <span style="color: #008800; font-weight: bold">as</span> e:
+           <span style="color: #008800; font-weight: bold">return</span> <span style="color: #007020">str</span>(e), <span style="color: #0000DD; font-weight: bold">503</span>
+   
+       filename <span style="color: #333333">=</span> f<span style="background-color: #fff0f0">&quot;{query[&#39;board_title&#39;]}{num}.html&quot;</span>
+       <span style="color: #008800; font-weight: bold">with</span> <span style="color: #007020">open</span>(f<span style="background-color: #fff0f0">&#39;./static/posts/{filename}&#39;</span>, <span style="background-color: #fff0f0">&quot;w&quot;</span>, encoding<span style="color: #333333">=</span><span style="background-color: #fff0f0">&#39;utf-8&#39;</span>) <span style="color: #008800; font-weight: bold">as</span> f:
+           f<span style="color: #333333">.</span>write(parse<span style="color: #333333">.</span>unquote(query[<span style="background-color: #fff0f0">&#39;content&#39;</span>]))
+       
+       <span style="color: #008800; font-weight: bold">try</span>:
+           <span style="color: #008800; font-weight: bold">import</span> <span style="color: #0e84b5; font-weight: bold">time</span>
+           now <span style="color: #333333">=</span> time<span style="color: #333333">.</span>localtime()
+           cursor<span style="color: #333333">.</span>execute(f<span style="background-color: #fff0f0">&quot;select count(*) from `{query[&#39;board_title&#39;]}`&quot;</span>)
+           sql <span style="color: #333333">=</span> f<span style="background-color: #fff0f0">&quot;insert into `{query[&#39;board_title&#39;]}` (`title`, `content`, `author`, `time`) values (&#39;{parse.unquote(query[&#39;title&#39;])}&#39;, &#39;{filename}&#39;, &#39;{parse.unquote(query[&#39;author&#39;])}&#39;, &#39;{now.tm_year}/{now.tm_mon}/{now.tm_mday}&#39;)&quot;</span>
+           cursor<span style="color: #333333">.</span>execute(sql)
+           conn<span style="color: #333333">.</span>commit()
+       <span style="color: #008800; font-weight: bold">except</span> <span style="color: #FF0000; font-weight: bold">Exception</span> <span style="color: #008800; font-weight: bold">as</span> e:
+           <span style="color: #008800; font-weight: bold">return</span> <span style="color: #007020">str</span>(e), <span style="color: #0000DD; font-weight: bold">503</span>
+   
+       <span style="color: #008800; font-weight: bold">return</span> f<span style="background-color: #fff0f0">&quot;&lt;script&gt;location.href=&#39;./board_view.html?board={query[&#39;board_title&#39;]}&amp;id={num + 1}&#39;&lt;/script&gt;&quot;</span>, <span style="color: #0000DD; font-weight: bold">200</span>
+   </pre></td></tr></table></div>
+   
+<p>board_write.html은 게시물 작성 폼을 제공하는 역할을 합니다.</p>
+
+<p>free 게시판만 글 작성이 가능하므로, free 게시판이 아니라면 클라이언트에게 alert과 리다이렉트를 보내줍니다.</p>
+
+<p>board_write.html 템플릿은 다음과 같습니다.</p>
+
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%"> 1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+   10
+   11
+   12
+   13
+   14
+   15
+   16
+   17
+   18
+   19
+   20
+   21
+   22
+   23
+   24
+   25
+   26
+   27
+   28
+   29
+   30
+   31
+   32
+   33
+   34
+   35
+   36
+   37
+   38
+   39
+   40
+   41
+   42
+   43
+   44
+   45
+   46
+   47
+   48
+   49
+   50
+   51
+   52
+   53
+   54
+   55</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">extends</span> <span style="background-color: #fff0f0">&quot;board_base.html&quot;</span> <span style="color: #557799">%}</span>
+   
+   <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">block</span> <span style="color: #996633">content_board</span> <span style="color: #557799">%}</span>
+   <span style="color: #007700">&lt;div&gt;</span>
+       <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;header_nav&quot;</span> <span style="color: #0000CC">style=</span><span style="background-color: #fff0f0">&quot;font-size: 2.5em;</span>
+   <span style="background-color: #fff0f0">    margin-bottom: 20px; padding-bottom: 10px;</span>
+   <span style="background-color: #fff0f0">    border-bottom: 2px #000000 solid;&quot;</span><span style="color: #007700">&gt;</span>
+           <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">block</span> <span style="color: #996633">title</span> <span style="color: #557799">%}{{</span> <span style="color: #996633">board_title</span> <span style="color: #557799">}}{%</span> <span style="color: #008800; font-weight: bold">endblock</span> <span style="color: #557799">%}</span>
+       <span style="color: #007700">&lt;/div&gt;</span>
+   
+       <span style="color: #007700">&lt;script&gt;</span>
+   
+           $(<span style="color: #007020">document</span>).on(<span style="background-color: #fff0f0">&#39;click&#39;</span>, <span style="background-color: #fff0f0">&#39;#btnSave&#39;</span>, <span style="color: #008800; font-weight: bold">function</span>(e){
+               e.preventDefault();
+               $(<span style="background-color: #fff0f0">&quot;#form&quot;</span>).submit();
+           });
+           $(<span style="color: #007020">document</span>).on(<span style="background-color: #fff0f0">&#39;click&#39;</span>, <span style="background-color: #fff0f0">&#39;#btnList&#39;</span>, <span style="color: #008800; font-weight: bold">function</span>(e){
+               e.preventDefault();
+               location.href<span style="color: #333333">=</span><span style="background-color: #fff0f0">&quot;./board.html?board=</span><span style="color: #557799">{{</span> <span style="color: #996633">board_title</span> <span style="color: #557799">}}</span><span style="background-color: #fff0f0">&quot;</span>;
+           });
+       <span style="color: #007700">&lt;/script&gt;</span>
+       <span style="color: #007700">&lt;article&gt;</span>
+   
+           <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;container&quot;</span> <span style="color: #0000CC">role=</span><span style="background-color: #fff0f0">&quot;main&quot;</span><span style="color: #007700">&gt;</span>
+               <span style="color: #007700">&lt;form</span> <span style="color: #0000CC">name=</span><span style="background-color: #fff0f0">&quot;form&quot;</span> <span style="color: #0000CC">id=</span><span style="background-color: #fff0f0">&quot;form&quot;</span> <span style="color: #0000CC">role=</span><span style="background-color: #fff0f0">&quot;form&quot;</span> <span style="color: #0000CC">method=</span><span style="background-color: #fff0f0">&quot;post&quot;</span>
+                   <span style="color: #0000CC">action=</span><span style="background-color: #fff0f0">&quot;./write.html&quot;</span><span style="color: #007700">&gt;</span>
+   
+                   <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;mb-3&quot;</span><span style="color: #007700">&gt;</span>
+                       <span style="color: #007700">&lt;label</span> <span style="color: #0000CC">for=</span><span style="background-color: #fff0f0">&quot;title&quot;</span><span style="color: #007700">&gt;</span>게시글 제목<span style="color: #007700">&lt;/label&gt;</span>
+                       <span style="color: #007700">&lt;input</span> <span style="color: #0000CC">type=</span><span style="background-color: #fff0f0">&quot;text&quot;</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;form-control&quot;</span> <span style="color: #0000CC">name=</span><span style="background-color: #fff0f0">&quot;title&quot;</span> <span style="color: #0000CC">id=</span><span style="background-color: #fff0f0">&quot;title&quot;</span> <span style="color: #0000CC">placeholder=</span><span style="background-color: #fff0f0">&quot;제목을 입력해 주세요&quot;</span><span style="color: #007700">&gt;</span>
+                   <span style="color: #007700">&lt;/div&gt;</span>
+   
+                   <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;mb-3&quot;</span><span style="color: #007700">&gt;</span>
+                       <span style="color: #007700">&lt;label</span> <span style="color: #0000CC">for=</span><span style="background-color: #fff0f0">&quot;author&quot;</span><span style="color: #007700">&gt;</span>작성자<span style="color: #007700">&lt;/label&gt;</span>
+                       <span style="color: #007700">&lt;input</span> <span style="color: #0000CC">type=</span><span style="background-color: #fff0f0">&quot;text&quot;</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;form-control&quot;</span> <span style="color: #0000CC">name=</span><span style="background-color: #fff0f0">&quot;author&quot;</span> <span style="color: #0000CC">id=</span><span style="background-color: #fff0f0">&quot;author&quot;</span> <span style="color: #0000CC">placeholder=</span><span style="background-color: #fff0f0">&quot;이름을 입력해 주세요&quot;</span><span style="color: #007700">&gt;</span>
+                   <span style="color: #007700">&lt;/div&gt;</span>
+   
+                   <span style="color: #007700">&lt;div</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;mb-3&quot;</span><span style="color: #007700">&gt;</span>
+                       <span style="color: #007700">&lt;label</span> <span style="color: #0000CC">for=</span><span style="background-color: #fff0f0">&quot;content&quot;</span><span style="color: #007700">&gt;</span>게시글 내용<span style="color: #007700">&lt;/label&gt;</span>
+                       <span style="color: #007700">&lt;textarea</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;form-control&quot;</span> <span style="color: #0000CC">rows=</span><span style="background-color: #fff0f0">&quot;5&quot;</span> <span style="color: #0000CC">name=</span><span style="background-color: #fff0f0">&quot;content&quot;</span> <span style="color: #0000CC">id=</span><span style="background-color: #fff0f0">&quot;content&quot;</span>
+                           <span style="color: #0000CC">placeholder=</span><span style="background-color: #fff0f0">&quot;내용을 입력해 주세요&quot;</span><span style="color: #007700">&gt;&lt;/textarea&gt;</span>
+                   <span style="color: #007700">&lt;/div&gt;</span>
+               <span style="color: #007700">&lt;input</span> <span style="color: #0000CC">type=</span><span style="background-color: #fff0f0">&quot;hidden&quot;</span> <span style="color: #0000CC">name=</span><span style="background-color: #fff0f0">&quot;board_title&quot;</span> <span style="color: #0000CC">value=</span><span style="background-color: #fff0f0">&quot;</span><span style="color: #557799">{{</span> <span style="color: #996633">board_title</span> <span style="color: #557799">}}</span><span style="background-color: #fff0f0">&quot;</span><span style="color: #007700">/&gt;</span>
+               <span style="color: #007700">&lt;/form&gt;</span>
+   
+               <span style="color: #007700">&lt;div&gt;</span>
+                   <span style="color: #007700">&lt;button</span> <span style="color: #0000CC">type=</span><span style="background-color: #fff0f0">&quot;button&quot;</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;btn btn-sm btn-success&quot;</span> <span style="color: #0000CC">id=</span><span style="background-color: #fff0f0">&quot;btnSave&quot;</span><span style="color: #007700">&gt;</span>저장<span style="color: #007700">&lt;/button&gt;</span>
+                   <span style="color: #007700">&lt;button</span> <span style="color: #0000CC">type=</span><span style="background-color: #fff0f0">&quot;button&quot;</span> <span style="color: #0000CC">class=</span><span style="background-color: #fff0f0">&quot;btn btn-sm btn-warning&quot;</span> <span style="color: #0000CC">id=</span><span style="background-color: #fff0f0">&quot;btnList&quot;</span><span style="color: #007700">&gt;</span>목록으로 돌아가기<span style="color: #007700">&lt;/button&gt;</span>
+               <span style="color: #007700">&lt;/div&gt;</span>
+   
+           <span style="color: #007700">&lt;/div&gt;</span>
+   
+       <span style="color: #007700">&lt;/article&gt;</span>
+   <span style="color: #007700">&lt;/div&gt;</span>
+   <span style="color: #557799">{%</span> <span style="color: #008800; font-weight: bold">endblock</span> <span style="color: #557799">%}</span>
+   </pre></td></tr></table></div>
+
+<p>form에 제목, 작성자, 내용을 입력할 수 있게 되어 있습니다. 현재 게시판의 이름 역시 hiddne 필드로 추가해 서버에서 받을 수 있게 했습니다.</p>
+
+<p>btnSave 버튼을 클릭하면 form이 write.html에 submit됩니다. 이 요청은 POST 메소드로 진행됩니다.</p>
+
+<p>write.html에서도 게시판을 확인해 free 게시판이 아니면 클라이언트에게 alert와 리다이렉트를 보냅니다.</p>
+
+<p>또한, 제목, 내용, 작성자 중 하나라도 비어어도 alert와 리다이텍트를 보냅니다.</p>
+
+<p>그 다음, 해당 게시판에 있는 게시물들의 개수를 가져오는 sql 쿼리를 작성하고, 응답 값을 num 변수에 저장합니다.</p>
+
+<p>board_title과 num을 이용해 게시물 내용이 저장될 html 파일을 생성하고, 이 파일 안에 url decode된 게시물의 내용을 저장합니다.</p>
+
+<p>이 모든 과정이 완료된 다음, insert 쿼리를 보내 게시물을 db에 추가하고, commit 합니다. 이러면 blog.db에 추가된 게시물이 기록됩니다.</p>
+
+<p>게시물이 성공적으로 등록되면, 작성된 게시물이 위치한 board_view.html로 리다이렉트되게 해 작성한 게시물을 바로 확인할 수 있게 했습니다.</p>

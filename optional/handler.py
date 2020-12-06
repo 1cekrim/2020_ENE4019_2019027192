@@ -75,17 +75,15 @@ class HTTPHandler(BaseHTTPRequestHandler):
         path = fullpath.split('/')
         if not path[0]:
             path = path[1:]
-        
         filename = path[-1]
         if not filename:
             filename = 'index.html'
+            path[-1] = filename
 
         fullpath = '/'.join(path)
 
         file_path = f'./static/{fullpath}'
-        print(file_path)
         extension = filename.split('.')[-1]
-        print(extension)
 
         import os.path
         if not os.path.exists(file_path):

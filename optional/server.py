@@ -146,9 +146,7 @@ def write(content, query, method):
     except Exception as e:
         return str(e), 503
 
-    # template = get_template(content)
-    # result = template.render(board_title=query['board'])
-    return f"<script>location.href='./board.html?board={query['board_title']}'</script>", 200
+    return f"<script>location.href='./board_view.html?board={query['board_title']}&id={num + 1}'</script>", 200
 
 
 def main():
