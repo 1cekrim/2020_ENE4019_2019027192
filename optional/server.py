@@ -134,13 +134,13 @@ def write(content, query, method):
 
     filename = f"{query['board_title']}{num}.html"
     with open(f'./static/posts/{filename}', "w", encoding='utf-8') as f:
-        f.write(parse.unquote(query['content']))
+        f.write(parse.unquote_plus(query['content']))
     
     try:
         import time
         now = time.localtime()
         cursor.execute(f"select count(*) from `{query['board_title']}`")
-        sql = f"insert into `{query['board_title']}` (`title`, `content`, `author`, `time`) values ('{parse.unquote(query['title'])}', '{filename}', '{parse.unquote(query['author'])}', '{now.tm_year}/{now.tm_mon}/{now.tm_mday}')"
+        sql = f"insert into `{parse.unquote_plus(query['board_title'])}` (`title`, `content`, `author`, `time`) values ('{parse.unquote_plus(query['title'])}', '{filename}', '{parse.unquote_plus(query['author'])}', '{now.tm_year}/{now.tm_mon}/{now.tm_mday}')"
         cursor.execute(sql)
         conn.commit()
     except Exception as e:
