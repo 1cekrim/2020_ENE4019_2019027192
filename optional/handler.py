@@ -71,16 +71,21 @@ class HTTPHandler(BaseHTTPRequestHandler):
                 qres[s[0]] = s[1]
         query = qres
 
-        path = parsed_path.path
-        path = path.split('/')
+        fullpath = parsed_path.path
+        path = fullpath.split('/')
         if not path[0]:
             path = path[1:]
         
-        filename = path[0]
+        filename = path[-1]
         if not filename:
             filename = 'index.html'
-        file_path = f'./static/{filename}'
+
+        fullpath = '/'.join(path)
+
+        file_path = f'./static/{fullpath}'
+        print(file_path)
         extension = filename.split('.')[-1]
+        print(extension)
 
         import os.path
         if not os.path.exists(file_path):
@@ -105,6 +110,16 @@ class HTTPHandler(BaseHTTPRequestHandler):
             with open(file_path, 'rb') as f:
                 content = f.read()
             self.send_header('Content-Type', 'image/jpg')
+            self.send_header('Content-Length', len(content))
+            self.end_headers()
+            self.wfile.write(content)
+            
+        elif extension == 'png':
+            self.send_response(200)
+            self.send_header('Referrer-Policy', 'no-referrer')
+            with open(file_path, 'rb') as f:
+                content = f.read()
+            self.send_header('Content-Type', 'image/png')
             self.send_header('Content-Length', len(content))
             self.end_headers()
             self.wfile.write(content)
