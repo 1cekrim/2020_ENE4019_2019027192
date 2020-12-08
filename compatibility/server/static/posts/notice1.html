@@ -1,0 +1,23 @@
+<p>openssl을 이용해 서버의 인증서와 key를 만들어 줍니다.</p>
+<p>그 다음, 아래와 같은 python3 코드를 이용해 https 서버를 열 수 있습니다.</p>
+
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%">1
+2
+3
+4
+5
+6
+7</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #008800; font-weight: bold">import</span> <span style="color: #0e84b5; font-weight: bold">ssl</span>
+<span style="color: #008800; font-weight: bold">from</span> <span style="color: #0e84b5; font-weight: bold">http.server</span> <span style="color: #008800; font-weight: bold">import</span> BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
+<span style="color: #008800; font-weight: bold">def</span> <span style="color: #0066BB; font-weight: bold">start_server</span>():
+    server <span style="color: #333333">=</span> ThreadingHTTPServer((<span style="background-color: #fff0f0">&#39;&#39;</span>, <span style="color: #0000DD; font-weight: bold">5253</span>), HTTPHandler)
+    server<span style="color: #333333">.</span>socket <span style="color: #333333">=</span> ssl<span style="color: #333333">.</span>wrap_socket(server<span style="color: #333333">.</span>socket, certfile<span style="color: #333333">=</span><span style="background-color: #fff0f0">&#39;server.crt&#39;</span>, keyfile<span style="color: #333333">=</span><span style="background-color: #fff0f0">&#39;server.key&#39;</span>, server_side<span style="color: #333333">=</span><span style="color: #007020">True</span>)
+    ip, port <span style="color: #333333">=</span> server<span style="color: #333333">.</span>server_address
+    server<span style="color: #333333">.</span>serve_forever()
+</pre></td></tr></table></div>
+
+<p>https 서버를 연 다음 접속하면 아래와 같은 경고가 출력됩니다.</p>
+
+<img src="./images/notice1_0.png"/>
+
+<p>openssl로 만든 인증서는 CA에서 인증받은 인증서가 아니기 때문에, 위와 같은 경고가 출력됩니다. 이는 해결법이 따로 없으니 그냥 계속하기를 눌러 주시면 https 서버를 정상적으로 이용하실 수 있습니다.</p>

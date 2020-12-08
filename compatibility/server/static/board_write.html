@@ -1,0 +1,55 @@
+{% extends "board_base.html" %}
+
+{% block content_board %}
+<div>
+    <div class="header_nav" style="font-size: 2.5em;
+    margin-bottom: 20px; padding-bottom: 10px;
+    border-bottom: 2px #000000 solid;">
+        {% block title %}{{ board_title }}{% endblock %}
+    </div>
+
+    <script>
+
+        $(document).on('click', '#btnSave', function(e){
+            e.preventDefault();
+            $("#form").submit();
+        });
+        $(document).on('click', '#btnList', function(e){
+            e.preventDefault();
+            location.href="./board.html?board={{ board_title }}";
+        });
+    </script>
+    <article>
+
+        <div class="container" role="main">
+            <form name="form" id="form" role="form" method="post"
+                action="./write.html">
+
+                <div class="mb-3">
+                    <label for="title">게시글 제목</label>
+                    <input type="text" class="form-control" name="title" id="title" placeholder="제목을 입력해 주세요">
+                </div>
+
+                <div class="mb-3">
+                    <label for="author">작성자</label>
+                    <input type="text" class="form-control" name="author" id="author" placeholder="이름을 입력해 주세요">
+                </div>
+
+                <div class="mb-3">
+                    <label for="content">게시글 내용</label>
+                    <textarea class="form-control" rows="5" name="content" id="content"
+                        placeholder="내용을 입력해 주세요"></textarea>
+                </div>
+            <input type="hidden" name="board_title" value="{{ board_title }}"/>
+            </form>
+
+            <div>
+                <button type="button" class="btn btn-sm btn-success" id="btnSave">저장</button>
+                <button type="button" class="btn btn-sm btn-warning" id="btnList">목록으로 돌아가기</button>
+            </div>
+
+        </div>
+
+    </article>
+</div>
+{% endblock %}
