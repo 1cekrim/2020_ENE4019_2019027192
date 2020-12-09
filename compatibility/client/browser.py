@@ -57,8 +57,11 @@ class Form(QMainWindow):
 
     def request_get(self, link):
         url = urlparse(link)
+        print(url)
         conn = HTTPConnection(url.netloc)
-        conn.request('GET', url.path, url.params, {
+        target = url.path + (('?' + url.query) if url.query else '')
+        print(target)
+        conn.request('GET', target, '', {
                         'USER-AGENT': '2019027192/HYEONSUKIM/WEBCLIENT/COMPUTERNETWORK'})
         rep = conn.getresponse()
         return rep.read()
@@ -69,16 +72,22 @@ class Form(QMainWindow):
         conn.request('POST', url.path, data, {
                         'USER-AGENT': '2019027192/HYEONSUKIM/WEBCLIENT/COMPUTERNETWORK'})
         rep = conn.getresponse()
-        print(rep)
         return rep.read()
 
     def do_get(self, link):
+        if 'http' not in link or 'https' not in link:
+            if self.urlbox.text():
+                link = urljoin(self.urlbox.text(), link)
         print(f'get: {link}')
         try:
             raw = self.request_get(link)
             if '.jpg' in link:
                 urllib.request.urlretrieve(link, './temp/image.jpg')
                 self.reptext.setText('<img src="./temp/image.jpg">')
+                return
+            elif '.png' in link:
+                urllib.request.urlretrieve(link, './temp/image.png')
+                self.reptext.setText('<img src="./temp/image.png">')
                 return
             text = raw.decode('utf-8')
             bs = BeautifulSoup(text, 'html.parser')
@@ -94,14 +103,10 @@ class Form(QMainWindow):
                     i += 1
                     urllib.request.urlretrieve(target, nn)
                     img['src'] = nn
-                except:
+                except Exception as e:
                     pass
-
-            for img in lst:
-                print(img['src'])
                 
             self.reptext.setText(str(bs))
-            print(str(bs))
             # self.reptext.adjustSize()
 
             # if os.path.exists('./temp'):
@@ -134,11 +139,7 @@ class Form(QMainWindow):
                 except:
                     pass
 
-            for img in lst:
-                print(img['src'])
-                
             self.reptext.setText(str(bs))
-            print(str(bs))
             # self.reptext.adjustSize()
 
             # if os.path.exists('./temp'):
